@@ -1,10 +1,7 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional
-import psycopg2
-from psycopg2.extras import RealDictCursor
-from contextlib import contextmanager
+from typing import Optional, Dict
 import os
 
 app = FastAPI(title="PaisaDekho API v1.0")
@@ -17,20 +14,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Replace DATABASE_URL with your Render Postgres URL
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:pass@localhost/db")
-
-
-@contextmanager
-def get_db():
-    conn = psycopg2.connect(DATABASE_URL)
-    try:
-        yield conn.cursor(cursor_factory=RealDictCursor)
-        conn.commit()
-    except:
-        conn.rollback()
-    finally:
-        conn.close()
+# In-memory "database" (persists during deploy)
+users_db: Dict[str, int] = {}
+profiles_db: Dict[int, dict] = {}
 
 
 class UserCreate(BaseModel):
@@ -40,28 +26,16 @@ class UserCreate(BaseModel):
 
 @app.post("/users/")
 async def create_or_get_user(user: UserCreate):
-    with get_db() as cur:
-        cur.execute("SELECT id, phone FROM users WHERE phone = %s", (user.phone,))
-        existing = cur.fetchone()
-
-        if existing:
-            return {
-                "user_id": int(existing["id"]),
-                "phone": existing["phone"],
-                "status": "existing_user",
-            }
-
-        cur.execute(
-            "INSERT INTO users (phone, email) VALUES (%s, %s) RETURNING id",
-            (user.phone, user.email),
-        )
-        user_id = cur.fetchone()["id"]
-
+    if user.phone in users_db:
         return {
-            "user_id": int(user_id),
+            "user_id": users_db[user.phone],
             "phone": user.phone,
-            "status": "new_user_created",
+            "status": "existing_user",
         }
+
+    user_id = len(users_db) + 1
+    users_db[user.phone] = user_id
+    return {"user_id": user_id, "phone": user.phone, "status": "new_user_created"}
 
 
 class UserProfile(BaseModel):
@@ -71,19 +45,18 @@ class UserProfile(BaseModel):
 
 @app.post("/users/{user_id}/profile")
 async def save_profile(user_id: int, profile: UserProfile):
-    with get_db() as cur:
-        cur.execute(
-            """
-            INSERT INTO user_profiles (user_id, full_name, pincode) 
-            VALUES (%s, %s, %s)
-            ON CONFLICT (user_id) DO UPDATE SET
-                full_name = EXCLUDED.full_name,
-                pincode = EXCLUDED.pincode
-        """,
-            (user_id, profile.full_name, profile.pincode),
-        )
+    profiles_db[user_id] = {"full_name": profile.full_name, "pincode": profile.pincode}
+    return {"status": "profile_saved"}
 
-        return {"status": "profile_saved"}
+
+@app.get("/users/{user_id}")
+async def get_user(user_id: int):
+    profile = profiles_db.get(user_id)
+    return {
+        "user_id": user_id,
+        "full_name": profile["full_name"] if profile else None,
+        "pincode": profile["pincode"] if profile else None,
+    }
 
 
 @app.get("/")
