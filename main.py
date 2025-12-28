@@ -143,3 +143,52 @@ async def health():
         return {"status": "healthy"}
     except:
         return {"status": "db_error"}
+
+
+@app.get("/personal-loans")
+async def get_personal_loans(user_id: Optional[int] = None):
+    try:
+        with get_db() as cur:
+            cur.execute(
+                """
+                SELECT 
+                    'lender_' || p.id as id,
+                    p.name,
+                    CASE 
+                        WHEN lp.max_amount >= 100000 THEN 
+                            '₹ ' || (lp.min_amount/100000)::text || ' Lakhs'
+                        ELSE '₹ ' || lp.min_amount::text 
+                    END as loan_amount,
+                    jsonb_build_object(
+                        'partPrepayment', pld.part_prepayment,
+                        'processingFee', pld.processing_fee,
+                        'foreclosure', pld.foreclosure,
+                        'interestRate', pld.interest_rate,
+                        'apr', pld.apr
+                    ) as charges,
+                    pld.documents,
+                    pld.process_steps as process,
+                    pld.key_facts,
+                    lp.interest_rate_min::float as interest,
+                    lp.min_amount::float as amountNumber,
+                    (lp.max_tenure_months/12)::float as tenureYears,
+                    1000 as cashback
+                FROM products p
+                JOIN loan_products lp ON p.id = lp.product_id
+                JOIN personal_loan_details pld ON p.id = pld.product_id
+                WHERE p.category_id = (SELECT id FROM product_categories WHERE code = 'personal_loan')
+                ORDER BY p.display_priority DESC
+            """
+            )
+            lenders = []
+            for row in cur.fetchall():
+                lenders.append(dict(row))
+            return {"lenders": lenders}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ✅ Test endpoint
+@app.get("/personal-loans/test")
+async def test_personal_loans():
+    return {"message": "14 lenders ready!", "endpoint": "GET /personal-loans"}
