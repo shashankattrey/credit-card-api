@@ -80,10 +80,42 @@ async def save_profile(user_id: int, profile: UserProfile):
             ON CONFLICT (user_id) DO UPDATE SET
                 full_name = EXCLUDED.full_name,
                 pincode = EXCLUDED.pincode
-        """,
+            """,
             (user_id, profile.full_name, profile.pincode),
         )
     return {"status": "profile_saved"}
+
+
+# ✅ NEW ENDPOINT - THIS WAS MISSING!
+@app.get("/users/{user_id}")
+async def get_user_profile(user_id: int):
+    try:
+        with get_db() as cur:
+            # Get user
+            cur.execute("SELECT id, phone FROM users WHERE id = %s", (user_id,))
+            user = cur.fetchone()
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+
+            # Get profile
+            cur.execute(
+                """
+                SELECT full_name, pincode 
+                FROM user_profiles 
+                WHERE user_id = %s
+            """,
+                (user_id,),
+            )
+            profile = cur.fetchone()
+
+            return {
+                "user_id": user[0],
+                "phone": user[1],
+                "full_name": profile[0] if profile else None,  # ✅ "Shashank"
+                "pincode": profile[1] if profile else None,
+            }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/debug/users")
