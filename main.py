@@ -24,7 +24,7 @@ class UserCreate(BaseModel):
     email: Optional[str] = None
 
 
-@app.post("/users/")
+@app.post("/debug/users/")
 async def create_or_get_user(user: UserCreate):
     if user.phone in users_db:
         return {
