@@ -23,7 +23,11 @@ app = FastAPI(title="PaisaDekho API v1.0", lifespan=lifespan)
 # Production CORS (React Native + Web)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Update later: ["https://yourdomain.com"]
+    allow_origins=[
+        "*",
+        "http://localhost:8081",
+        "http://10.0.2.2:8081",
+    ],  # Update later: ["https://yourdomain.com"]
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
