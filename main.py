@@ -242,3 +242,41 @@ async def get_personal_loans(user_id: Optional[int] = None):
 @app.get("/personal-loans/test")
 async def test_personal_loans():
     return {"message": "14 lenders ready!", "endpoint": "GET /personal-loans"}
+
+
+@app.get("/business-loans")
+async def get_business_loans():
+    with get_db() as cur:
+        cur.execute(
+            """
+            SELECT jsonb_build_object(
+                'id', 'business_' || p.id::text,
+                'loanName', p.name,
+                'bankName', SPLIT_PART(p.name, '-', 2)::text,
+                'variant', COALESCE(bld.variant, 'Unsecured'),
+                'bestFor', COALESCE(bld.best_for, 'Business funding'),
+                'maxAmount', CASE 
+                    WHEN lp.max_amount >= 10000000 THEN 'Up to ₹' || (lp.max_amount/10000000)::text || ' Cr'
+                    WHEN lp.max_amount >= 100000 THEN 'Up to ₹' || (lp.max_amount/100000)::text || ' Lakhs'
+                    ELSE 'Up to ₹' || lp.max_amount::text
+                END,
+                'applyUrl', COALESCE(p.apply_url, ''),
+                'fees', jsonb_build_object(
+                    'processingFee', COALESCE(bld.processing_fee, '2% + GST'),
+                    'interestRate', COALESCE(bld.interest_rate, '18-30% p.a.'),
+                    'tenureRange', COALESCE(bld.tenure_range, '12-36 months'),
+                    'prepaymentCharges', COALESCE(bld.prepayment_charges, 'Nil')
+                ),
+                'eligibility', COALESCE(bld.eligibility, '{}'),
+                'keyFacts', COALESCE(bld.key_facts, '{}'),
+                'highlightTag', COALESCE(p.highlight_tag, 'Popular'),
+                'documents', COALESCE(bld.documents, '{}')
+            )
+            FROM products p
+            LEFT JOIN loan_products lp ON p.id = lp.product_id
+            LEFT JOIN business_loan_details bld ON p.id = bld.product_id
+            WHERE p.category_id = 5 AND p.is_active = true
+            ORDER BY p.display_priority
+        """
+        )
+        return {"businessLoans": [row[0] for row in cur.fetchall()]}
