@@ -153,6 +153,56 @@ async def get_personal_loans(user_id: Optional[int] = None):
                 """
                 SELECT 
                     'lender_' || p.id as id,
+                    p.name as name,
+                    CASE WHEN lp.max_amount >= 100000 THEN 
+                        '₹ ' || (lp.min_amount/100000)::text || ' Lakhs'
+                    ELSE '₹ ' || lp.min_amount::text END as loan_amount,
+                    lp.interest_rate_min::float as interest,
+                    lp.min_amount::float as amountNumber,
+                    (lp.max_tenure_months/12)::float as tenureYears
+                FROM products p
+                JOIN loan_products lp ON p.id = lp.product_id
+                JOIN personal_loan_details pld ON p.id = pld.product_id
+                JOIN product_categories pc ON p.category_id = pc.id
+                WHERE pc.code = 'personal_loan'
+                ORDER BY p.display_priority DESC
+            """
+            )
+
+            lenders = []
+            for row in cur.fetchall():
+                lender = {
+                    "id": row[0],
+                    "name": row[1],
+                    "loan_amount": row[2],
+                    "interest": float(row[3]),
+                    "amountNumber": float(row[4]),
+                    "tenureYears": float(row[5]),
+                    "charges": {
+                        "partPrepayment": "Allowed",
+                        "processingFee": "1%",
+                        "foreclosure": "Allowed",
+                        "interestRate": f"{row[3]}%",
+                        "apr": f"{row[3]+0.5}%",
+                    },
+                    "documents": ["Aadhaar", "PAN"],
+                    "process": ["KYC", "Approval", "Disbursal"],
+                    "key_facts": ["Instant approval"],
+                    "cashback": 1000,
+                }
+                lenders.append(lender)
+
+            return {"lenders": lenders}
+    except Exception as e:
+        print(f"🚨 ERROR: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+    try:
+        with get_db() as cur:
+            cur.execute(
+                """
+                SELECT 
+                    'lender_' || p.id as id,
                     p.name,
                     CASE 
                         WHEN lp.max_amount >= 100000 THEN 
