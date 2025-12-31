@@ -10,29 +10,40 @@ exports.handler = async (event) => {
   try {
     const query = `
       SELECT 
-        lp.product_id::text as id,
-        COALESCE(p.name, 'Personal Loan ' || lp.product_id::text) as name,
-        COALESCE(p.name, 'Lender ' || lp.product_id::text) as bank_name,
+        pld.product_id::text as id,
+        COALESCE(p.name, 'Personal Loan ' || pld.product_id::text) as name,
+        COALESCE(p.name, 'Lender ' || pld.product_id::text) as bank_name,
+        COALESCE(p.highlight_tag, 'Best Rate') as highlight_tag,
+        
         (lp.interest_rate_min * 100)::int::text || '-' || (lp.interest_rate_max * 100)::int::text || '%' as interestRate,
-        '₹ ' || (lp.max_amount / 100000)::int::text || ' Lakhs' as loan_amount,
+        
+        '₹' || (lp.min_amount / 100000)::int::text || '-' || (lp.max_amount / 100000)::int::text || ' Lakhs' as loan_amount,
+        
         json_build_object(
-          'partPrepayment', 'Allowed after 6 months',
-          'processingFee', '1-2%',
-          'foreclosure', '4%',
-          'interestRate', (lp.interest_rate_min * 100)::int::text || '-' || (lp.interest_rate_max * 100)::int::text || '%',
-          'apr', ((lp.interest_rate_min * 1.1) * 100)::int::text || '-' || ((lp.interest_rate_max * 1.1) * 100)::int::text || '%'
+          'partPrepayment', COALESCE(pld.part_prepayment, 'N/A'),
+          'processingFee', COALESCE(pld.processing_fee, 'N/A'),
+          'foreclosure', COALESCE(pld.foreclosure, 'N/A'),
+          'interest_rate', COALESCE(pld.interest_rate, 'N/A'),
+          'apr', COALESCE(pld.apr, 'N/A')
         ) as charges,
-        ARRAY['Aadhaar Card', 'PAN Card', 'Salary Slips (3 months)', 'Bank Statements (6 months)']::text[] as documents,
-        ARRAY['Instant Apply', 'KYC Verification', 'Credit Check', 'Approval', 'Disbursal']::text[] as process,
-        ARRAY['Salaried: 21+ years', 'Min Salary: ₹25,000/month', 'CIBIL: 700+', 'No Collateral']::text[] as key_facts,
-        (lp.interest_rate_min + lp.interest_rate_max) / 2 as interest,
-        lp.max_amount as amountNumber,
-        GREATEST(1, lp.max_tenure_months / 12) as tenureYears,
-        1000 as cashback
-      FROM loan_products lp
-      LEFT JOIN products p ON p.id = lp.product_id::bigint
-      WHERE lp.loan_type ILIKE '%personal%' OR lp.loan_type = 'personal'
-      ORDER BY lp.interest_rate_min ASC NULLS LAST, lp.max_amount DESC NULLS LAST
+        
+        COALESCE(pld.documents, '[]'::jsonb) as documents,
+        COALESCE(pld.process_steps, '[]'::jsonb) as process_steps,
+        COALESCE(pld.key_facts, '[]'::jsonb) as key_facts,
+        
+        lp.loan_type,
+        lp.min_amount,
+        lp.max_amount,
+        lp.max_tenure_months,
+        p.apply_url,
+        p.description
+        
+      FROM personal_loan_details pld
+      LEFT JOIN loan_products lp ON lp.product_id::bigint = pld.product_id
+      LEFT JOIN products p ON p.id = pld.product_id::bigint
+      WHERE pld.product_id IS NOT NULL 
+        AND pld.part_prepayment IS NOT NULL
+      ORDER BY lp.interest_rate_min ASC NULLS LAST
       LIMIT 5;
     `;
 
@@ -56,17 +67,26 @@ exports.handler = async (event) => {
       headers: {
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Content-Type",
         "Access-Control-Allow-Methods": "GET,OPTIONS",
       },
-      body: JSON.stringify(data.rows || []),
+      body: JSON.stringify({
+        success: true,
+        data: data.rows || [],
+        count: data.rows?.length || 0,
+      }),
     };
   } catch (error) {
     console.error("Function error:", error);
     return {
       statusCode: 500,
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      },
       body: JSON.stringify({
-        error: "Failed to fetch loans",
+        success: false,
+        error: "Failed to fetch personal loans",
         details: error.message,
       }),
     };
