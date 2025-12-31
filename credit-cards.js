@@ -19,8 +19,6 @@ exports.handler = async (event) => {
     };
   }
 
-  const { pincode } = event.queryStringParameters || {};
-
   try {
     const query = `
       SELECT 
@@ -29,26 +27,20 @@ exports.handler = async (event) => {
         c.bank_name,
         c.network,
         c.variant,
-        CASE 
-          WHEN ppe.pincode = $1 THEN 'Available in your city'
-          WHEN $1 LIKE '302%' THEN 'Jaipur Available'
-          ELSE 'Limited availability'
-        END as highlight_tag,
+        'Nationwide Available' as highlight_tag,
         c.joining_fee,
         c.annual_fee,
-        CASE WHEN ppe.pincode = $1 OR $1 LIKE '302%' THEN 10 ELSE 5 END as display_priority,
+        10 as display_priority,
         p.apply_url
       FROM credit_card_products c
       JOIN products p ON p.id = c.product_id
-      LEFT JOIN product_pincode_eligibility ppe ON ppe.product_id = p.id AND (ppe.pincode = $1 OR $1 IS NULL)
       ORDER BY 
-        CASE WHEN ppe.pincode = $1 OR $1 LIKE '302%' THEN 1 ELSE 2 END,
         COALESCE(p.display_priority, 0) DESC NULLS LAST,
         c.joining_fee ASC
       LIMIT 25
     `;
 
-    const result = await pool.query(query, [pincode || "302017"]);
+    const result = await pool.query(query);
 
     return {
       statusCode: 200,
