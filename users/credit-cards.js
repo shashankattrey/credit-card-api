@@ -1,10 +1,5 @@
 const { Pool } = require("pg");
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-});
-
 exports.handler = async (event) => {
   // Handle preflight OPTIONS request
   if (event.httpMethod === "OPTIONS") {
@@ -18,6 +13,12 @@ exports.handler = async (event) => {
       body: "",
     };
   }
+
+  // Create NEW pool per request (Netlify serverless)
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false },
+  });
 
   try {
     const query = `
@@ -62,6 +63,7 @@ exports.handler = async (event) => {
       }),
     };
   } finally {
-    await pool.end();
+    // ✅ CORRECT: End THIS request's pool only
+    await pool.end().catch(console.error);
   }
 };
