@@ -58,7 +58,7 @@ exports.handler = async (event) => {
       WHERE pld.product_id IS NOT NULL 
         AND pld.part_prepayment IS NOT NULL
       ORDER BY lp.interest_rate_min ASC NULLS LAST
-      LIMIT 5;
+      ;
     `;
 
     const result = await pool.query(query);
