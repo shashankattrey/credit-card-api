@@ -1,10 +1,2 @@
-[project]
-name = "credit-card-api"
-region = "eu-central-1"
-
 [functions]
-path = "nhost/functions"
-
-[hasura]
-migrations_dir = "migrations"
-metadata_dir = "metadata"
+lang = "javascript"
