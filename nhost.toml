@@ -1,0 +1,13 @@
+
+[project]
+name = "credit-card-api"  # your project name
+region = "eu-central-1"   # match your Nhost project region
+
+[functions]
+# path to the functions folder
+path = "nhost/functions"
+
+[hasura]
+# optional if you’re not using Hasura migrations or metadata
+migrations_dir = "migrations"
+metadata_dir = "metadata"
