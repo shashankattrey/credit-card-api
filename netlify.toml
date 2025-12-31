@@ -1,8 +1,17 @@
-# netlify.toml (root level)
 [build]
-  functions = "users"  # Points to your users/ folder with node_modules
+  functions = "users"
 
 [[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
+  from = "/api/create-user"
+  to = "/.netlify/functions/create-user"
+  status = 200
+  
+[[redirects]]
+  from = "/api/get-user/*"
+  to = "/.netlify/functions/get-user/:splat"
+  status = 200
+  
+[[redirects]]
+  from = "/api/save-profile/*"
+  to = "/.netlify/functions/save-profile/:splat"
   status = 200
