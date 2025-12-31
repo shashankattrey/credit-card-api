@@ -1,0 +1,8 @@
+# netlify.toml (root level)
+[build]
+  functions = "users"  # Points to your users/ folder with node_modules
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
