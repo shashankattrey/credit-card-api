@@ -1,11 +1,25 @@
 // netlify/functions/personal-loans.js
+const { Pool } = require("pg");
+
 exports.handler = async (event) => {
-  if (event.httpMethod !== "GET") {
+  // Handle preflight OPTIONS request
+  if (event.httpMethod === "OPTIONS") {
     return {
-      statusCode: 405,
-      body: JSON.stringify({ error: "Method not allowed" }),
+      statusCode: 200,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+      },
+      body: "",
     };
   }
+
+  // ✅ SAME WORKING PATTERN - NEW pool per request
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL, // ✅ Your working env var
+    ssl: { rejectUnauthorized: false },
+  });
 
   try {
     const query = `
@@ -47,48 +61,29 @@ exports.handler = async (event) => {
       LIMIT 5;
     `;
 
-    const response = await fetch(process.env.NEON_DATABASE_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.NEON_API_KEY}`,
-      },
-      body: JSON.stringify({ query }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Database error: ${response.status}`);
-    }
-
-    const data = await response.json();
+    const result = await pool.query(query);
 
     return {
       statusCode: 200,
       headers: {
-        "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Allow-Methods": "GET,OPTIONS",
       },
-      body: JSON.stringify({
-        success: true,
-        data: data.rows || [],
-        count: data.rows?.length || 0,
-      }),
+      body: JSON.stringify(result.rows), // ✅ Direct array like your credit-cards
     };
   } catch (error) {
-    console.error("Function error:", error);
+    console.error("DB Error:", error);
     return {
       statusCode: 500,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
+      headers: { "Access-Control-Allow-Origin": "*" },
       body: JSON.stringify({
-        success: false,
-        error: "Failed to fetch personal loans",
-        details: error.message,
+        error: "Database connection failed",
+        message: error.message,
       }),
     };
+  } finally {
+    // ✅ SAME WORKING PATTERN
+    await pool.end().catch(console.error);
   }
 };
