@@ -28,7 +28,7 @@ exports.handler = async (event) => {
         c.bank_name,
         c.network,
         c.variant,
-        'Nationwide Available' as highlight_tag,
+        p.highlight_tag,
         c.joining_fee,
         c.annual_fee,
         10 as display_priority,
