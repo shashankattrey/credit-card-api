@@ -1,14 +1,16 @@
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST")
     return { statusCode: 405, body: "POST only" };
-  const { phone } = JSON.parse(event.body || "{}");
+  const user_id = parseInt(event.queryStringParameters?.id || "1");
+  const { full_name, pincode } = JSON.parse(event.body || "{}");
   return {
     statusCode: 200,
     headers: { "Access-Control-Allow-Origin": "*" },
     body: JSON.stringify({
-      user_id: 123,
-      phone,
-      status: "new_user_created",
+      status: "profile_saved",
+      user_id,
+      full_name,
+      pincode,
     }),
   };
 };
