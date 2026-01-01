@@ -23,43 +23,47 @@ exports.handler = async (event) => {
 
   try {
     const query = `
-      SELECT 
-        pld.product_id::text as id,
-        COALESCE(p.name, 'Personal Loan ' || pld.product_id::text) as name,
-        COALESCE(p.name, 'Lender ' || pld.product_id::text) as bank_name,
-        COALESCE(p.highlight_tag, 'Best Rate') as highlight_tag,
-        
-        (lp.interest_rate_min * 100)::int::text || '-' || (lp.interest_rate_max * 100)::int::text || '%' as interestRate,
-        
-        '₹' || (lp.min_amount / 100000)::int::text || '-' || (lp.max_amount / 100000)::int::text || ' Lakhs' as loan_amount,
-        
-        json_build_object(
-          'partPrepayment', COALESCE(pld.part_prepayment, 'N/A'),
-          'processingFee', COALESCE(pld.processing_fee, 'N/A'),
-          'foreclosure', COALESCE(pld.foreclosure, 'N/A'),
-          'interest_rate', COALESCE(pld.interest_rate, 'N/A'),
-          'apr', COALESCE(pld.apr, 'N/A')
-        ) as charges,
-        
-        COALESCE(pld.documents, '[]'::jsonb) as documents,
-        COALESCE(pld.process_steps, '[]'::jsonb) as process_steps,
-        COALESCE(pld.key_facts, '[]'::jsonb) as key_facts,
-        
-        lp.loan_type,
-        lp.min_amount,
-        lp.max_amount,
-        lp.max_tenure_months,
-        p.apply_url,
-        p.description
-        
-      FROM personal_loan_details pld
-      LEFT JOIN loan_products lp ON lp.product_id::bigint = pld.product_id
-      LEFT JOIN products p ON p.id = pld.product_id::bigint
-      WHERE pld.product_id IS NOT NULL 
-        AND pld.part_prepayment IS NOT NULL
-      ORDER BY lp.interest_rate_min ASC NULLS LAST
-      ;
-    `;
+    SELECT 
+      pld.product_id::text as id,
+      COALESCE(p.name, 'Personal Loan ' || pld.product_id::text) as name,
+      COALESCE(p.name, 'Lender ' || pld.product_id::text) as bank_name,
+      COALESCE(p.highlight_tag, 'Best Rate') as highlight_tag,
+      
+      (lp.interest_rate_min * 100)::int::text || '-' || (lp.interest_rate_max * 100)::int::text || '%' as interestRate,
+      
+      '₹' || (lp.min_amount / 100000)::int::text || '-' || (lp.max_amount / 100000)::int::text || ' Lakhs' as loan_amount,
+      
+      json_build_object(
+        'partPrepayment', COALESCE(pld.part_prepayment, 'N/A'),
+        'processingFee', COALESCE(pld.processing_fee, 'N/A'),
+        'foreclosure', COALESCE(pld.foreclosure, 'N/A'),
+        'interest_rate', COALESCE(pld.interest_rate, 'N/A'),
+        'apr', COALESCE(pld.apr, 'N/A')
+      ) as charges,
+      
+      COALESCE(pld.documents, '[]'::jsonb) as documents,
+      COALESCE(pld.process_steps, '[]'::jsonb) as process_steps,
+      COALESCE(pld.key_facts, '[]'::jsonb) as key_facts,
+      
+      lp.loan_type,
+      lp.min_amount,
+      lp.max_amount,
+      lp.max_tenure_months,
+      p.apply_url,
+      p.description,
+  
+      -- NEW: cashback details
+      cr.amount_percentage as cashback_percentage,
+      cr.max_amount as cashback_max_amount
+  
+    FROM personal_loan_details pld
+    LEFT JOIN loan_products lp ON lp.product_id::bigint = pld.product_id
+    LEFT JOIN products p ON p.id = pld.product_id::bigint
+    LEFT JOIN cashback_rules cr ON cr.product_id = pld.product_id AND cr.is_active = TRUE
+    WHERE pld.product_id IS NOT NULL 
+      AND pld.part_prepayment IS NOT NULL
+    ORDER BY lp.interest_rate_min ASC NULLS LAST;
+  `;
 
     const result = await pool.query(query);
 

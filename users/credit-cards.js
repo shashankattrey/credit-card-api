@@ -23,22 +23,26 @@ exports.handler = async (event) => {
   try {
     const query = `
       SELECT 
-        c.product_id::text as id,
-        COALESCE(p.name, c.bank_name || ' ' || c.variant) as name,
+        c.product_id::text AS id,
+        COALESCE(p.name, c.bank_name || ' ' || c.variant) AS name,
         c.bank_name,
         c.network,
         c.variant,
         p.highlight_tag,
         c.joining_fee,
         c.annual_fee,
-        10 as display_priority,
+        COALESCE(cr.amount_flat, 0) AS cashback_amount, -- Flat cashback
+        10 AS display_priority,
         p.apply_url
       FROM credit_card_products c
       JOIN products p ON p.id = c.product_id
+      LEFT JOIN cashback_rules cr 
+        ON cr.product_id = c.product_id 
+       AND cr.is_active = true
       ORDER BY 
         COALESCE(p.display_priority, 0) DESC NULLS LAST,
         c.joining_fee ASC
-      LIMIT 25
+      LIMIT 25;
     `;
 
     const result = await pool.query(query);
@@ -63,7 +67,6 @@ exports.handler = async (event) => {
       }),
     };
   } finally {
-    // ✅ CORRECT: End THIS request's pool only
     await pool.end().catch(console.error);
   }
 };
