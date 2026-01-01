@@ -75,7 +75,7 @@ exports.handler = async (event) => {
         END,
         updated_at = NOW()
       WHERE user_id = $1
-      RETURNING id, full_name, kyc_status, kyc_completed, 
+      RETURNING user_id, full_name, kyc_status, kyc_completed, 
                 pan_number, bank_name, account_number, account_type, pincode
     `,
       [
