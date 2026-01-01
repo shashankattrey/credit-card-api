@@ -63,32 +63,29 @@ exports.handler = async (event) => {
         full_name = $2, dob = $3, employment_type = $4, pincode = $5,
         pan_number = $6, bank_name = $7, ifsc_code = $8,
         account_number = $9, account_type = $10,
+        annual_income = $11,
         kyc_status = CASE 
           WHEN $6 IS NOT NULL AND $7 IS NOT NULL AND $8 IS NOT NULL 
           AND $9 IS NOT NULL AND $10 IS NOT NULL 
           THEN 'completed' ELSE 'pending' 
         END,
-        kyc_completed = CASE 
-          WHEN $6 IS NOT NULL AND $7 IS NOT NULL AND $8 IS NOT NULL 
-          AND $9 IS NOT NULL AND $10 IS NOT NULL 
-          THEN 't' ELSE 'f' 
-        END,
         updated_at = NOW()
-      WHERE user_id = $1
-      RETURNING user_id, full_name, kyc_status, kyc_completed, 
-                pan_number, bank_name, account_number, account_type, pincode
-    `,
+      WHERE user_id = $1  -- ✅ Fixed from 'id'
+      RETURNING user_id, full_name, kyc_status, pan_number, 
+                bank_name, account_number, account_type, pincode
+      `,
       [
-        user_id,
-        full_name || null,
-        dob || null,
-        employment_type || null,
-        pincode || null,
-        pan_number || null,
-        bank_name || null,
-        ifsc_code || null,
-        account_number || null,
-        account_type || null,
+        user_id, // $1
+        full_name || null, // $2
+        dob || null, // $3
+        employment_type || null, // $4
+        pincode || null, // $5
+        pan_number || null, // $6
+        bank_name || null, // $7
+        ifsc_code || null, // $8
+        account_number || null, // $9
+        account_type || null, // $10
+        parseInt(body.annual_income) || null, // $11 - add if needed
       ]
     );
 
