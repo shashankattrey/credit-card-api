@@ -60,32 +60,41 @@ exports.handler = async (event) => {
       `
       UPDATE user_profiles 
       SET 
-        full_name = $2, dob = $3, employment_type = $4, pincode = $5,
-        pan_number = $6, bank_name = $7, ifsc_code = $8,
-        account_number = $9, account_type = $10,
-        annual_income = $11,
+        full_name = COALESCE($2, full_name),
+        dob = COALESCE($3, dob),
+        employment_type = COALESCE($4, employment_type),
+        pincode = COALESCE($5, pincode),
+        pan_number = COALESCE($6, pan_number),
+        bank_name = COALESCE($7, bank_name),
+        ifsc_code = COALESCE($8, ifsc_code),
+        account_number = COALESCE($9, account_number),
+        account_type = COALESCE($10, account_type),
+        annual_income = COALESCE($11, annual_income),
         kyc_status = CASE 
-          WHEN $6 IS NOT NULL AND $7 IS NOT NULL AND $8 IS NOT NULL 
-          AND $9 IS NOT NULL AND $10 IS NOT NULL 
+          WHEN COALESCE($6, '') != '' 
+           AND COALESCE($7, '') != '' 
+           AND COALESCE($8, '') != '' 
+           AND COALESCE($9, '') != '' 
+           AND COALESCE($10, '') != '' 
           THEN 'completed' ELSE 'pending' 
         END,
         updated_at = NOW()
-      WHERE user_id = $1  -- ✅ Fixed from 'id'
+      WHERE user_id = $1
       RETURNING user_id, full_name, kyc_status, pan_number, 
                 bank_name, account_number, account_type, pincode
       `,
       [
-        user_id, // $1
-        full_name || null, // $2
-        dob || null, // $3
-        employment_type || null, // $4
-        pincode || null, // $5
-        pan_number || null, // $6
-        bank_name || null, // $7
-        ifsc_code || null, // $8
-        account_number || null, // $9
-        account_type || null, // $10
-        parseInt(body.annual_income) || null, // $11 - add if needed
+        user_id, // $1 - bigint (PK)
+        full_name || null, // $2 - varchar
+        dob || null, // $3 - date
+        employment_type || null, // $4 - varchar
+        pincode || null, // $5 - varchar
+        pan_number || null, // $6 - varchar (FIXED!)
+        bank_name || null, // $7 - varchar
+        ifsc_code || null, // $8 - varchar
+        account_number || null, // $9 - varchar
+        account_type || null, // $10 - varchar
+        parseInt(body.annual_income) || null, // $11 - integer
       ]
     );
 
