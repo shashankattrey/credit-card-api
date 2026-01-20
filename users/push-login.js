@@ -1,6 +1,6 @@
-import { Handler } from '@netlify/functions';
-import { Pool } from 'pg';
-import admin from 'firebase-admin';
+const { Handler } = require('@netlify/functions');
+const { Pool } = require('pg');
+const admin = require('firebase-admin');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -16,22 +16,30 @@ if (!admin.apps.length) {
   });
 }
 
-export const handler: Handler = async (event) => {
+exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'POST only' };
   }
 
   try {
-    const { phone, fcm_token }: { phone: string; fcm_token: string } = JSON.parse(event.body || '{}');
+    const { phone, fcm_token } = JSON.parse(event.body || '{}');
     
     if (!phone || !/^\d{10}$/.test(phone)) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'Invalid phone' }) };
+      return { 
+        statusCode: 400, 
+        headers: { 'Access-Control-Allow-Origin': '*' },
+        body: JSON.stringify({ error: 'Invalid phone' }) 
+      };
     }
 
     // Check user exists
     const userResult = await pool.query('SELECT id FROM users WHERE phone = $1', [phone]);
     if (userResult.rows.length === 0) {
-      return { statusCode: 404, body: JSON.stringify({ error: 'User not found' }) };
+      return { 
+        statusCode: 404, 
+        headers: { 'Access-Control-Allow-Origin': '*' },
+        body: JSON.stringify({ error: 'User not found' }) 
+      };
     }
 
     const userId = userResult.rows[0].id;
@@ -47,7 +55,7 @@ export const handler: Handler = async (event) => {
     await admin.messaging().send({
       token: fcm_token,
       notification: {
-        title: 'Login to Paisa Dekho',
+        title: 'PaisaDekho Login',
         body: 'Tap to approve login (90s)'
       },
       data: { challenge_id: challengeId, action: 'login_approve' }
@@ -57,7 +65,7 @@ export const handler: Handler = async (event) => {
       statusCode: 200,
       headers: { 
         'Access-Control-Allow-Origin': '*',
-        'Content-Type': 'application/json' 
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ 
         challenge_id: challengeId, 
