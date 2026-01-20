@@ -1,4 +1,4 @@
-const { Handler } = require('@netlify/functions');
+// users/push-login.js (SIMPLE - NO @netlify/functions)
 const { Pool } = require('pg');
 const admin = require('firebase-admin');
 
@@ -18,7 +18,11 @@ if (!admin.apps.length) {
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: 'POST only' };
+    return { 
+      statusCode: 405, 
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      body: 'POST only' 
+    };
   }
 
   try {
@@ -32,7 +36,6 @@ exports.handler = async (event) => {
       };
     }
 
-    // Check user exists
     const userResult = await pool.query('SELECT id FROM users WHERE phone = $1', [phone]);
     if (userResult.rows.length === 0) {
       return { 
@@ -43,15 +46,13 @@ exports.handler = async (event) => {
     }
 
     const userId = userResult.rows[0].id;
-    
-    // Create challenge
     const challengeId = `CHLG_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    
     await pool.query(
       'INSERT INTO push_challenges (user_id, challenge_id, expires_at) VALUES ($1, $2, NOW() + INTERVAL \'90 seconds\')',
       [userId, challengeId]
     );
 
-    // Send push notification
     await admin.messaging().send({
       token: fcm_token,
       notification: {
