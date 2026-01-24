@@ -1,5 +1,7 @@
 [build]
-  functions = "users"
+  functions = "netlify/functions"  # ← CHANGED from "users"
+  command = ""                     # ← ADD THIS - disables expo build
+  publish = "netlify"              # ← ADD THIS - deploys functions only
 
 [[redirects]]
   from = "/api/*"
